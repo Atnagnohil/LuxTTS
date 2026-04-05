@@ -20,13 +20,15 @@ dependencies = [
   "safetensors",
   "setuptools<81",
   "tensorboard",
-  "torch",
-  "torchaudio",
+  "torch==2.12.0.dev20260404+cu128",
+  "torchaudio==2.11.0.dev20260402+cu128",
+  "torchvision==0.27.0.dev20260404+cu128",
   "transformers<=4.57.6",
   "vocos",
   "fastapi",
   "uvicorn",
   "python-multipart",
+  "httpx>=0.28.1",
 ]
 
 [project.optional-dependencies]
@@ -43,6 +45,10 @@ line-length = 120
 
 [tool.uv]
 find-links = ["https://k2-fsa.github.io/icefall/piper_phonemize.html"]
+
+[[tool.uv.index]]
+name = "pytorch-nightly"
+url = "https://download.pytorch.org/whl/nightly/cu128"
 
 [tool.uv.sources]
 linacodec = { git = "https://github.com/ysharma3501/LinaCodec.git" }

@@ -78,6 +78,8 @@ async def synthesize(req: TTSRequest, request: Request) -> FileResponse:
 
     loop = asyncio.get_event_loop()
 
+    loop = asyncio.get_event_loop()
+
     async with _inference_lock:
         try:
             wav = await loop.run_in_executor(
@@ -112,6 +114,8 @@ async def synthesize_stream(req: TTSRequest, request: Request) -> StreamingRespo
 
     loop = asyncio.get_event_loop()
 
+    loop = asyncio.get_event_loop()
+
     async with _inference_lock:
         try:
             wav = await loop.run_in_executor(
@@ -122,13 +126,13 @@ async def synthesize_stream(req: TTSRequest, request: Request) -> StreamingRespo
                     num_steps=req.num_steps,
                     t_shift=req.t_shift,
                     speed=req.speed,
-                    return_smooth=True,
+                    return_smooth=False,
                 ),
             )
         except RuntimeError as exc:
             raise HTTPException(status_code=500, detail=f"Inference failed: {exc}") from exc
 
     def audio_generator():
-        yield from tensor_to_wav_chunks(wav, sample_rate=24000)
+        yield from tensor_to_wav_chunks(wav, sample_rate=48000)
 
     return StreamingResponse(audio_generator(), media_type="audio/wav")

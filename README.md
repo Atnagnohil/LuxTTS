@@ -37,21 +37,59 @@ Full API documentation: [`docs/api.md`](docs/api.md)
 
 ## Quick Start
 
-### Docker (Recommended)
+### Prerequisites
+
+- Python 3.10-3.12
+- CUDA-capable GPU (recommended)
+- For RTX 50 series (sm_120): PyTorch nightly build required
+
+### Installation with uv (Recommended)
+
+```bash
+git clone https://github.com/Atnagnohil/LuxTTS.git
+cd LuxTTS
+
+# Install uv if not already installed
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Create virtual environment and install dependencies
+uv venv
+uv sync
+
+# For RTX 50 series (5060, 5070, 5080, 5090) or newer GPUs
+uv pip install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu128
+
+# Start the server
+./start_server.sh
+```
+
+### Installation with pip
+
+```bash
+git clone https://github.com/Atnagnohil/LuxTTS.git
+cd LuxTTS
+pip install -r requirements.txt
+
+# For RTX 50 series or newer GPUs
+pip install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu128
+
+# Start the server
+uvicorn api.server:app --host 0.0.0.0 --port 8000
+```
+
+### Docker (Alternative)
 
 Requires [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html).
 
 ```bash
-git clone https://github.com/ysharma3501/LuxTTS.git
+git clone https://github.com/Atnagnohil/LuxTTS.git
 cd LuxTTS
 
 # Build the image
 docker build -t luxtts-api .
 
 # Start the server (model downloaded from HuggingFace automatically)
-docker run --gpus all -p 8000:8000 \
-  -e MODEL_PATH=YatharthS/LuxTTS \
-  luxtts-api
+docker run --gpus all -p 8000:8000 luxtts-api
 ```
 
 Mount a local model directory to avoid re-downloading:
@@ -67,28 +105,45 @@ Pre-load preset voices at startup:
 
 ```bash
 docker run --gpus all -p 8000:8000 \
-  -e MODEL_PATH=YatharthS/LuxTTS \
   -e PRESET_VOICES="alice:Alice:/voices/alice.wav,bob:Bob:/voices/bob.wav" \
   -v /your/local/voices:/voices \
   luxtts-api
-```
-
-### Local
-
-```bash
-git clone https://github.com/ysharma3501/LuxTTS.git
-cd LuxTTS
-pip install -r requirements.txt
-
-MODEL_PATH=YatharthS/LuxTTS uvicorn api.server:app --host 0.0.0.0 --port 8000
 ```
 
 ## Environment Variables
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `MODEL_PATH` | `models/luxtts.pt` | HuggingFace repo ID or local model path |
+| `MODEL_PATH` | Auto-detect from cache or download | HuggingFace repo ID (`YatharthS/LuxTTS`) or local model path |
 | `PRESET_VOICES` | _(empty)_ | Preset voices: `id:label:/path/to/audio.wav,...` |
+| `TRANSFORMERS_OFFLINE` | `0` | Set to `1` to disable HuggingFace downloads |
+| `DEVICE` | `cuda` | Device to use: `cuda`, `cpu`, or `mps` |
+
+### Configuration File
+
+Create a `.env` file in the project root:
+
+```bash
+# Optional: Disable HuggingFace downloads (use cached models only)
+TRANSFORMERS_OFFLINE=1
+
+# Optional: Specify model path (auto-detected if not set)
+# MODEL_PATH=/path/to/your/model
+
+# Optional: Force CPU mode
+# DEVICE=cpu
+```
+
+## GPU Compatibility
+
+| GPU Series | PyTorch Version | Installation |
+|------------|----------------|--------------|
+| RTX 50 (5060, 5070, 5080, 5090) | Nightly (sm_120) | `pip install --pre torch --index-url https://download.pytorch.org/whl/nightly/cu128` |
+| RTX 40 (4090, 4080, etc.) | Stable or Nightly | `pip install torch` or nightly |
+| RTX 30 (3090, 3080, etc.) | Stable | `pip install torch` |
+| RTX 20, GTX 16 series | Stable | `pip install torch` |
+
+The project automatically detects your GPU and uses the appropriate compute capability. For RTX 50 series, PyTorch nightly is required as stable releases don't yet support sm_120 architecture.
 
 ## Example Usage
 

@@ -37,21 +37,59 @@
 
 ## 快速开始
 
-### Docker（推荐）
+### 前置要求
+
+- Python 3.10-3.12
+- 支持 CUDA 的 GPU（推荐）
+- RTX 50 系列（sm_120）：需要 PyTorch nightly 版本
+
+### 使用 uv 安装（推荐）
+
+```bash
+git clone https://github.com/Atnagnohil/LuxTTS.git
+cd LuxTTS
+
+# 安装 uv（如果尚未安装）
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# 创建虚拟环境并安装依赖
+uv venv
+uv sync
+
+# RTX 50 系列（5060、5070、5080、5090）或更新的 GPU
+uv pip install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu128
+
+# 启动服务
+./start_server.sh
+```
+
+### 使用 pip 安装
+
+```bash
+git clone https://github.com/Atnagnohil/LuxTTS.git
+cd LuxTTS
+pip install -r requirements.txt
+
+# RTX 50 系列或更新的 GPU
+pip install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu128
+
+# 启动服务
+uvicorn api.server:app --host 0.0.0.0 --port 8000
+```
+
+### Docker（备选方案）
 
 需要安装 [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html)。
 
 ```bash
-git clone https://github.com/ysharma3501/LuxTTS.git
+git clone https://github.com/Atnagnohil/LuxTTS.git
 cd LuxTTS
 
 # 构建镜像
 docker build -t luxtts-api .
 
 # 启动服务（模型从 HuggingFace 自动下载）
-docker run --gpus all -p 8000:8000 \
-  -e MODEL_PATH=YatharthS/LuxTTS \
-  luxtts-api
+docker run --gpus all -p 8000:8000 luxtts-api
 ```
 
 挂载本地模型目录，避免重复下载：
@@ -67,28 +105,45 @@ docker run --gpus all -p 8000:8000 \
 
 ```bash
 docker run --gpus all -p 8000:8000 \
-  -e MODEL_PATH=YatharthS/LuxTTS \
   -e PRESET_VOICES="alice:爱丽丝:/voices/alice.wav,bob:鲍勃:/voices/bob.wav" \
   -v /your/local/voices:/voices \
   luxtts-api
-```
-
-### 本地运行
-
-```bash
-git clone https://github.com/ysharma3501/LuxTTS.git
-cd LuxTTS
-pip install -r requirements.txt
-
-MODEL_PATH=YatharthS/LuxTTS uvicorn api.server:app --host 0.0.0.0 --port 8000
 ```
 
 ## 环境变量
 
 | 变量 | 默认值 | 说明 |
 |------|--------|------|
-| `MODEL_PATH` | `models/luxtts.pt` | HuggingFace repo ID 或本地模型路径 |
+| `MODEL_PATH` | 自动从缓存检测或下载 | HuggingFace repo ID（`YatharthS/LuxTTS`）或本地模型路径 |
 | `PRESET_VOICES` | _(空)_ | 预设音色，格式：`id:显示名:/path/to/audio.wav,...` |
+| `TRANSFORMERS_OFFLINE` | `0` | 设为 `1` 禁用 HuggingFace 下载 |
+| `DEVICE` | `cuda` | 使用的设备：`cuda`、`cpu` 或 `mps` |
+
+### 配置文件
+
+在项目根目录创建 `.env` 文件：
+
+```bash
+# 可选：禁用 HuggingFace 下载（仅使用缓存模型）
+TRANSFORMERS_OFFLINE=1
+
+# 可选：指定模型路径（不设置则自动检测）
+# MODEL_PATH=/path/to/your/model
+
+# 可选：强制使用 CPU 模式
+# DEVICE=cpu
+```
+
+## GPU 兼容性
+
+| GPU 系列 | PyTorch 版本 | 安装命令 |
+|----------|-------------|---------|
+| RTX 50（5060、5070、5080、5090） | Nightly（sm_120） | `pip install --pre torch --index-url https://download.pytorch.org/whl/nightly/cu128` |
+| RTX 40（4090、4080 等） | 稳定版或 Nightly | `pip install torch` 或 nightly |
+| RTX 30（3090、3080 等） | 稳定版 | `pip install torch` |
+| RTX 20、GTX 16 系列 | 稳定版 | `pip install torch` |
+
+项目会自动检测您的 GPU 并使用相应的计算能力。RTX 50 系列需要 PyTorch nightly 版本，因为稳定版尚不支持 sm_120 架构。
 
 ## 使用示例
 

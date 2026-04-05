@@ -6,6 +6,10 @@ Manages model lifecycle via lifespan context manager and registers API routes.
 import logging
 import os
 import sys
+
+# 使用本地缓存，禁止联网下载模型
+os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
+os.environ.setdefault("HF_DATASETS_OFFLINE", "1")
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from typing import Any
@@ -28,11 +32,26 @@ class AppState:
 async def lifespan(app: FastAPI):
     """Manage application startup and shutdown."""
     # --- Startup ---
-    model_path = os.environ.get("MODEL_PATH", "models/luxtts.pt")
+    model_path = os.environ.get("MODEL_PATH", "YatharthS/LuxTTS")
+    
+    # If MODEL_PATH is not set or is the default HF repo, try to find in cache
+    if model_path == "YatharthS/LuxTTS":
+        cache_dir = os.path.expanduser("~/.cache/huggingface/hub")
+        model_cache_pattern = os.path.join(cache_dir, "models--YatharthS--LuxTTS/snapshots/*")
+        import glob
+        cached_models = glob.glob(model_cache_pattern)
+        if cached_models:
+            # Use the most recent snapshot
+            model_path = max(cached_models, key=os.path.getmtime)
+            logger.info(f"Using cached model from: {model_path}")
+        else:
+            logger.info("Model not found in cache, will download from HuggingFace")
+            model_path = None
 
     try:
         from zipvoice.luxvoice import LuxTTS
-        tts = LuxTTS(model_path)
+        device = os.environ.get("DEVICE", "cuda")
+        tts = LuxTTS(model_path, device=device)
     except Exception as exc:
         logger.error("Failed to load LuxTTS model from '%s': %s", model_path, exc)
         sys.exit(1)

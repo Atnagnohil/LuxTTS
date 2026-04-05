@@ -1,5 +1,14 @@
-# LuxTTS
+# LuxTTS API Server
+
 <p align="center">
+  <a href="README.zh.md">中文</a> | <b>English</b>
+</p>
+
+<p align="center">
+  <a href="https://github.com/ysharma3501/LuxTTS">
+    <img src="https://img.shields.io/badge/Upstream-ysharma3501%2FLuxTTS-blue?logo=github" alt="Upstream">
+  </a>
+  &nbsp;
   <a href="https://huggingface.co/YatharthS/LuxTTS">
     <img src="https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Model-FFD21E" alt="Hugging Face Model">
   </a>
@@ -7,145 +16,112 @@
   <a href="https://huggingface.co/spaces/YatharthS/LuxTTS">
     <img src="https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Space-blue" alt="Hugging Face Space">
   </a>
-  &nbsp;
-  <a href="https://colab.research.google.com/drive/1cDaxtbSDLRmu6tRV_781Of_GSjHSo1Cu?usp=sharing">
-    <img src="https://img.shields.io/badge/Colab-Notebook-F9AB00?logo=googlecolab&logoColor=white" alt="Colab Notebook">
-  </a>
 </p>
 
-LuxTTS is an lightweight zipvoice based text-to-speech model designed for high quality voice cloning and realistic generation at speeds exceeding 150x realtime.
+This is a fork of [ysharma3501/LuxTTS](https://github.com/ysharma3501/LuxTTS), focused on exposing LuxTTS capabilities as a REST HTTP API built with FastAPI. The core model and inference code are unchanged — this fork adds an `api/` layer on top.
 
-https://github.com/user-attachments/assets/a3b57152-8d97-43ce-bd99-26dc9a145c29
+## What's different from upstream
 
+The upstream project provides a Python library interface. This fork wraps it in a production-ready HTTP API server, so you can call LuxTTS over the network from any language or tool.
 
-### The main features are
-- Voice cloning: SOTA voice cloning on par with models 10x larger.
-- Clarity: Clear 48khz speech generation unlike most TTS models which are limited to 24khz.
-- Speed: Reaches speeds of 150x realtime on a single GPU and faster then realtime on CPU's as well.
-- Efficiency: Fits within 1gb vram meaning it can fit in any local gpu.
+## API Endpoints
 
-## Usage
-You can try it locally, colab, or spaces.
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/voices` | List all registered voices |
+| `POST` | `/api/voices/clone` | Clone a voice from a reference audio file |
+| `POST` | `/api/tts` | Synthesize speech, returns a complete WAV file |
+| `POST` | `/api/tts/stream` | Synthesize speech, returns a streaming WAV response |
 
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1cDaxtbSDLRmu6tRV_781Of_GSjHSo1Cu?usp=sharing)
-[![Open in Spaces](https://huggingface.co/datasets/huggingface/badges/resolve/main/open-in-hf-spaces-sm.svg)](https://huggingface.co/spaces/YatharthS/LuxTTS)
+Full API documentation: [`docs/api.md`](docs/api.md)
 
-#### Simple installation:
+## Quick Start
+
+### Docker (Recommended)
+
+Requires [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html).
+
+```bash
+git clone https://github.com/ysharma3501/LuxTTS.git
+cd LuxTTS
+
+# Build the image
+docker build -t luxtts-api .
+
+# Start the server (model downloaded from HuggingFace automatically)
+docker run --gpus all -p 8000:8000 \
+  -e MODEL_PATH=YatharthS/LuxTTS \
+  luxtts-api
 ```
+
+Mount a local model directory to avoid re-downloading:
+
+```bash
+docker run --gpus all -p 8000:8000 \
+  -e MODEL_PATH=/models/LuxTTS \
+  -v /your/local/models:/models \
+  luxtts-api
+```
+
+Pre-load preset voices at startup:
+
+```bash
+docker run --gpus all -p 8000:8000 \
+  -e MODEL_PATH=YatharthS/LuxTTS \
+  -e PRESET_VOICES="alice:Alice:/voices/alice.wav,bob:Bob:/voices/bob.wav" \
+  -v /your/local/voices:/voices \
+  luxtts-api
+```
+
+### Local
+
+```bash
 git clone https://github.com/ysharma3501/LuxTTS.git
 cd LuxTTS
 pip install -r requirements.txt
+
+MODEL_PATH=YatharthS/LuxTTS uvicorn api.server:app --host 0.0.0.0 --port 8000
 ```
 
-#### Load model:
+## Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `MODEL_PATH` | `models/luxtts.pt` | HuggingFace repo ID or local model path |
+| `PRESET_VOICES` | _(empty)_ | Preset voices: `id:label:/path/to/audio.wav,...` |
+
+## Example Usage
+
 ```python
-from zipvoice.luxvoice import LuxTTS
+import httpx
 
-# load model on GPU
-lux_tts = LuxTTS('YatharthS/LuxTTS', device='cuda')
+# Clone a voice
+with open("reference.wav", "rb") as f:
+    httpx.post("http://localhost:8000/api/voices/clone",
+        data={"voice_id": "alice", "label": "Alice", "duration": "5", "rms": "0.01"},
+        files={"audio": f})
 
-# load model on CPU
-# lux_tts = LuxTTS('YatharthS/LuxTTS', device='cpu', threads=2)
-
-# load model on MPS for macs
-# lux_tts = LuxTTS('YatharthS/LuxTTS', device='mps')
+# Synthesize speech
+resp = httpx.post("http://localhost:8000/api/tts", json={
+    "text": "Hello, world!",
+    "voice_id": "alice"
+})
+with open("output.wav", "wb") as f:
+    f.write(resp.content)
 ```
 
-#### Simple inference
-```python
-import soundfile as sf
-from IPython.display import Audio
+Interactive API docs (Swagger UI) are available at `http://localhost:8000/docs` once the server is running.
 
-text = "Hey, what's up? I'm feeling really great if you ask me honestly!"
+## Original Project
 
-## change this to your reference file path, can be wav/mp3
-prompt_audio = 'audio_file.wav'
+LuxTTS is a lightweight ZipVoice-based TTS model with:
+- SOTA voice cloning quality
+- 48 kHz audio output
+- 150x realtime speed on GPU
+- Under 1 GB VRAM
 
-## encode audio(takes 10s to init because of librosa first time)
-encoded_prompt = lux_tts.encode_prompt(prompt_audio, rms=0.01)
+For model details and the original Python interface, see the [upstream repository](https://github.com/ysharma3501/LuxTTS).
 
-## generate speech
-final_wav = lux_tts.generate_speech(text, encoded_prompt, num_steps=4)
+## License
 
-## save audio
-final_wav = final_wav.numpy().squeeze()
-sf.write('output.wav', final_wav, 48000)
-
-## display speech
-if display is not None:
-  display(Audio(final_wav, rate=48000))
-```
-
-#### Inference with sampling params:
-```python
-import soundfile as sf
-from IPython.display import Audio
-
-text = "Hey, what's up? I'm feeling really great if you ask me honestly!"
-
-## change this to your reference file path, can be wav/mp3
-prompt_audio = 'audio_file.wav'
-
-rms = 0.01 ## higher makes it sound louder(0.01 or so recommended)
-t_shift = 0.9 ## sampling param, higher can sound better but worse WER
-num_steps = 4 ## sampling param, higher sounds better but takes longer(3-4 is best for efficiency)
-speed = 1.0 ## sampling param, controls speed of audio(lower=slower)
-return_smooth = False ## sampling param, makes it sound smoother possibly but less cleaner
-ref_duration = 5 ## Setting it lower can speedup inference, set to 1000 if you find artifacts.
-
-## encode audio(takes 10s to init because of librosa first time)
-encoded_prompt = lux_tts.encode_prompt(prompt_audio, duration=ref_duration, rms=rms)
-
-## generate speech
-final_wav = lux_tts.generate_speech(text, encoded_prompt, num_steps=num_steps, t_shift=t_shift, speed=speed, return_smooth=return_smooth)
-
-## save audio
-final_wav = final_wav.numpy().squeeze()
-sf.write('output.wav', final_wav, 48000)
-
-## display speech
-if display is not None:
-  display(Audio(final_wav, rate=48000))
-```
-## Tips
-- Please use at minimum a 3 second audio file for voice cloning.
-- You can use return_smooth = True if you hear metallic sounds.
-- Lower t_shift for less possible pronunciation errors but worse quality and vice versa.
-
-## Community
-- [Lux-TTS-Gradio](https://github.com/NidAll/LuxTTS-Gradio): A gradio app to use LuxTTS.
-- [OptiSpeech](https://github.com/ycharfi09/OptiClone): Clean UI app to use LuxTTS.
-- [LuxTTS-Comfyui](https://github.com/DragonDiffusionbyBoyo/BoyoLuxTTS-Comfyui.git): Nodes to use LuxTTS in comfyui.
-
-Thanks to all community contributions!
-
-## Info
-
-Q: How is this different from ZipVoice?
-
-A: LuxTTS uses the same architecture but distilled to 4 steps with an improved sampling technique. It also uses a custom 48khz vocoder instead of the default 24khz version.
-
-Q: Can it be even faster?
-
-A: Yes, currently it uses float32. Float16 should be significantly faster(almost 2x).
-
-## Roadmap
-
-- [x] Release model and code
-- [x] Huggingface spaces demo
-- [x] Release MPS support (thanks to @builtbybasit)
-- [ ] Release LuxTTS v1.5
-- [ ] Release code for float16 inference
-
-## Acknowledgments
-
-- [ZipVoice](https://github.com/k2-fsa/ZipVoice) for their excellent code and model.
-- [Vocos](https://github.com/gemelo-ai/vocos.git) for their great vocoder.
-  
-## Final Notes
-
-The model and code are licensed under the Apache-2.0 license. See LICENSE for details.
-
-Stars/Likes would be appreciated, thank you.
-
-Email: yatharthsharma350@gmail.com
+Apache-2.0 — see [LICENSE](LICENSE) for details.

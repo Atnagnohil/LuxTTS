@@ -1,0 +1,52 @@
+# Git
+.git
+.gitignore
+
+# Python 缓存
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# 虚拟环境
+.venv/
+venv/
+env/
+
+# 测试 & 开发工具
+test/
+.pytest_cache/
+.hypothesis/
+*.egg-info/
+dist/
+build/
+htmlcov/
+.coverage
+coverage.xml
+
+# Kiro / IDE
+.kiro/
+.vscode/
+.idea/
+
+# 文档（不需要打包进镜像）
+docs/
+*.md
+
+# 音频样本 & 输出文件
+*.wav
+*.mp3
+*.flac
+*.ogg
+output.wav
+爱丽丝.mp3
+
+# 锁文件（镜像内用 pip 安装，不需要 uv.lock）
+uv.lock
+
+# 其他
+*.log
+.DS_Store
+Thumbs.db

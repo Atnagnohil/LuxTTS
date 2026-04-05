@@ -13,7 +13,7 @@ dependencies = [
   "librosa",
   "linacodec",
   "numpy",
-  "onnxruntime",
+  "onnxruntime<=1.20.1",
   "piper-phonemize",
   "pydub",
   "pypinyin",
@@ -24,6 +24,9 @@ dependencies = [
   "torchaudio",
   "transformers<=4.57.6",
   "vocos",
+  "fastapi",
+  "uvicorn",
+  "python-multipart",
 ]
 
 [project.optional-dependencies]
@@ -46,3 +49,9 @@ linacodec = { git = "https://github.com/ysharma3501/LinaCodec.git" }
 
 [tool.uv.build-backend]
 module-root = "" # The root module of the project
+
+[dependency-groups]
+dev = [
+    "hypothesis>=6.151.10",
+    "pytest>=9.0.2",
+]
